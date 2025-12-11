@@ -18,6 +18,8 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         .html2canvas-container { width: 3000px !important; height: 3000px !important; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.2s ease-out; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen pb-20">
@@ -32,34 +34,34 @@
         const THEMES = {
             hinata: {
                 id: 'hinata', name: '日向坂',
-                gradient: 'linear-gradient(135deg, #7cc7e8 0%, #4facfe 100%)', 
+                gradient: 'linear-gradient(135deg, #7cc7e8 0%, #4facfe 100%)',
                 bgIcon: '#4facfe',
                 border: 'border-blue-100',
                 tier1: 'bg-blue-50 border-blue-200 text-blue-600',
                 tier2: 'bg-blue-100 border-blue-400 text-blue-800 shadow-sm',
-                tier3: GOLD_TIER_STYLE, 
+                tier3: GOLD_TIER_STYLE,
                 barColor: 'bg-blue-400',
                 totalColor: 'text-blue-600'
             },
             nogi: {
                 id: 'nogi', name: '乃木坂',
-                gradient: 'linear-gradient(135deg, #D399E6 0%, #7D2886 100%)', 
+                gradient: 'linear-gradient(135deg, #D399E6 0%, #7D2886 100%)',
                 bgIcon: '#7D2886',
                 border: 'border-purple-100',
                 tier1: 'bg-purple-50 border-purple-200 text-purple-600',
                 tier2: 'bg-purple-100 border-purple-400 text-purple-900 shadow-sm',
-                tier3: GOLD_TIER_STYLE, 
+                tier3: GOLD_TIER_STYLE,
                 barColor: 'bg-purple-400',
                 totalColor: 'text-purple-600'
             },
             sakura: {
                 id: 'sakura', name: '櫻坂',
-                gradient: 'linear-gradient(135deg, #ffc0cb 0%, #f78da7 100%)', 
+                gradient: 'linear-gradient(135deg, #ffc0cb 0%, #f78da7 100%)',
                 bgIcon: '#f78da7',
                 border: 'border-pink-100',
                 tier1: 'bg-pink-50 border-pink-200 text-pink-600',
                 tier2: 'bg-pink-100 border-pink-400 text-pink-800 shadow-sm',
-                tier3: GOLD_TIER_STYLE, 
+                tier3: GOLD_TIER_STYLE,
                 barColor: 'bg-pink-400',
                 totalColor: 'text-pink-600'
             }
@@ -76,6 +78,8 @@
                 { id: 3, dateLabel: "3月1日 (六)", parts: [2, 4, 5, 6, 8, 3] },
             ]
         };
+
+        // --- 元件區 ---
 
         const DatePickerModal = ({ isOpen, onClose, onConfirm, initialDateStr }) => {
             if (!isOpen) return null;
@@ -114,11 +118,47 @@
             );
         };
 
+        const ResultModal = ({ isOpen, onClose, imageUrl }) => {
+            if (!isOpen || !imageUrl) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in" style={{zIndex: 10000}} onClick={onClose}>
+                    <div className="bg-transparent w-full max-w-sm flex flex-col gap-4 relative" onClick={e => e.stopPropagation()}>
+                        
+                        <div className="bg-white rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+                            <div className="p-4 bg-gray-50 border-b border-gray-100 text-center">
+                                <h3 className="font-bold text-gray-800 text-lg">圖片已建立！</h3>
+                                <p className="text-xs text-gray-500 mt-1">長按下方圖片即可儲存或分享</p>
+                            </div>
+                            
+                            <div className="p-4 bg-gray-200 flex justify-center">
+                                <img src={imageUrl} alt="Schedule Result" className="w-full h-auto rounded-lg shadow-md select-none" style={{WebkitTouchCallout: 'default'}} />
+                            </div>
+
+                            <div className="p-4">
+                                <button onClick={onClose} className="w-full py-3 text-gray-600 font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition">
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onClick={onClose} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [data, setData] = useState(DEFAULT_DATA);
             const [isGenerating, setIsGenerating] = useState(false);
-            const [activeTab, setActiveTab] = useState('edit'); 
+            const [activeTab, setActiveTab] = useState('edit');
             const [modalConfig, setModalConfig] = useState({ isOpen: false, dateIndex: null, initialVal: '' });
+            
+            // New State for Generated Image
+            const [generatedImage, setGeneratedImage] = useState(null);
+            const [showResultModal, setShowResultModal] = useState(false);
+
             const previewRef = useRef(null);
 
             useEffect(() => {
@@ -139,7 +179,7 @@
             const removeDate = (idx) => { if(confirm("確定刪除？")) { const newDates = data.dates.filter((_, i) => i !== idx); setData({ ...data, dates: newDates }); }};
             const resetData = () => { if(confirm("重置所有？")) setData(DEFAULT_DATA); };
             const getTotal = () => data.dates.reduce((acc, d) => acc + d.parts.reduce((a, b) => a + b, 0), 0);
-            
+
             const openDateModal = (index, currentVal) => setModalConfig({ isOpen: true, dateIndex: index, initialVal: currentVal });
             const handleDateConfirm = (newLabel) => {
                 const newDates = [...data.dates];
@@ -150,82 +190,63 @@
             const theme = THEMES[data.theme] || THEMES.hinata;
 
             const getTierClass = (count) => {
-                if (count === 0) return "bg-gray-50 border-gray-300 text-gray-300"; 
+                if (count === 0) return "bg-gray-50 border-gray-300 text-gray-300";
                 if (count <= 3) return `${theme.tier1} font-bold`;
                 if (count <= 6) return `${theme.tier2} font-bold`;
-                return `${theme.tier3} font-bold`; 
+                return `${theme.tier3} font-bold`;
             };
 
-            const handleDownload = async () => {
+            const handleGenerate = async () => {
                 if (!previewRef.current) return;
                 setIsGenerating(true);
                 
+                // Slight delay to allow spinner to render and UI to settle
                 setTimeout(async () => {
                     try {
                         const canvas = await html2canvas(previewRef.current, {
-                            scale: 3, 
+                            scale: 3,
                             useCORS: true,
                             backgroundColor: null,
                             logging: false,
                             onclone: (clonedDoc) => {
+                                // Apply styles to cloned document for cleaner screenshot
                                 const el = clonedDoc.getElementById('capture-target');
                                 if(el) {
                                     el.style.transform = 'none';
-                                    el.style.boxShadow = 'none'; 
+                                    el.style.boxShadow = 'none';
                                 }
 
-                                clonedDoc.querySelectorAll('.fix-name-offset').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-10px'; 
-                                });
+                                const applyOffset = (selector, top) => {
+                                    clonedDoc.querySelectorAll(selector).forEach(el => {
+                                        el.style.position = 'relative';
+                                        el.style.top = top;
+                                    });
+                                };
 
-                                clonedDoc.querySelectorAll('.fix-subtitle-offset').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-10px'; 
-                                });
-
-                                clonedDoc.querySelectorAll('.fix-date-text').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-7px';
-                                });
-
+                                applyOffset('.fix-name-offset', '-10px');
+                                applyOffset('.fix-subtitle-offset', '-10px');
+                                applyOffset('.fix-date-text', '-7px');
+                                applyOffset('.fix-total-offset', '-10px');
+                                applyOffset('.fix-legend-offset', '-6px');
+                                applyOffset('.fix-header-offset', '-4px');
+                                applyOffset('.fix-num-offset', '-8px');
+                                
                                 clonedDoc.querySelectorAll('.fix-subtotal-text-inner').forEach(el => {
                                     el.style.position = 'relative';
-                                    el.style.top = '-6px'; 
+                                    el.style.top = '-6px';
                                     el.style.display = 'inline-block';
-                                });
-
-                                clonedDoc.querySelectorAll('.fix-total-offset').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-10px'; 
-                                });
-
-                                clonedDoc.querySelectorAll('.fix-legend-offset').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-6px'; 
-                                });
-
-                                clonedDoc.querySelectorAll('.fix-header-offset').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-4px';
-                                });
-
-                                clonedDoc.querySelectorAll('.fix-num-offset').forEach(el => {
-                                    el.style.position = 'relative';
-                                    el.style.top = '-8px';
                                 });
                             }
                         });
                         
-                        const link = document.createElement('a');
-                        link.download = `${data.memberName}_行程表.png`;
-                        link.href = canvas.toDataURL('image/png');
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                        // Generate Image URL instead of downloading
+                        const imgData = canvas.toDataURL('image/png');
+                        setGeneratedImage(imgData);
+                        setShowResultModal(true);
+
                     } catch (err) {
                         console.error(err);
-                        alert("生成失敗，請手動截圖！");
+                        alert("生成失敗，請稍後再試！");
                     } finally {
                         setIsGenerating(false);
                     }
@@ -235,6 +256,8 @@
             return (
                 <div className="flex flex-col h-screen overflow-hidden">
                     <DatePickerModal isOpen={modalConfig.isOpen} onClose={() => setModalConfig({...modalConfig, isOpen: false})} onConfirm={handleDateConfirm} initialDateStr={modalConfig.initialVal} />
+                    
+                    <ResultModal isOpen={showResultModal} onClose={() => setShowResultModal(false)} imageUrl={generatedImage} />
 
                     <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 px-4 py-3 flex justify-between items-center shadow-sm shrink-0">
                         <div className="flex items-center gap-2">
@@ -270,7 +293,7 @@
 
                                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                                     <div className="flex justify-between items-center mb-4"><h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">場次編輯</h3><button onClick={addDate} className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 新增</button></div>
-                                    
+
                                     <div className="space-y-4">
                                         {data.dates.map((item, dIdx) => (
                                             <div key={item.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
@@ -293,22 +316,22 @@
                             </div>
 
                             <div className={`flex flex-col items-center ${activeTab === 'preview' ? 'block' : 'hidden lg:flex'}`}>
-                                <div className="bg-gray-800 text-white rounded-full px-6 py-3 mb-6 flex items-center gap-3 shadow-xl cursor-pointer hover:scale-105 transition active:scale-95" onClick={handleDownload}>
+                                <div className="bg-gray-800 text-white rounded-full px-6 py-3 mb-6 flex items-center gap-3 shadow-xl cursor-pointer hover:scale-105 transition active:scale-95" onClick={handleGenerate}>
                                     {isGenerating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
-                                    <span className="font-bold text-sm">下載圖片</span>
+                                    <span className="font-bold text-sm">產生圖片</span>
                                 </div>
 
                                 <div className="bg-gray-200/50 p-4 lg:p-8 rounded-[32px] border border-gray-200 shadow-inner overflow-hidden max-w-full">
                                     <div ref={previewRef} id="capture-target" className="bg-white w-[380px] min-h-[500px] rounded-[24px] overflow-hidden shadow-2xl relative flex flex-col shrink-0 mx-auto">
-                                        
+
                                         <div className="p-6 text-white relative overflow-hidden shrink-0" style={{ background: theme.gradient }}>
                                             <div className="absolute -top-4 -right-4 w-24 h-24 bg-white opacity-20 rounded-full"></div>
                                             <div className="absolute top-10 -left-6 w-16 h-16 bg-white opacity-10 rounded-full"></div>
-                                            
+
                                             <div className="relative z-10 text-center">
                                                 <p className="text-[10px] font-medium tracking-[0.2em] opacity-90 mb-1 uppercase font-sans fix-header-offset" style={{top: 0}}>{data.eventName}</p>
                                                 <h2 className="text-lg font-bold mb-2 tracking-wide font-sans fix-subtitle-offset">{data.subTitle}</h2>
-                                                
+
                                                 <div className="flex justify-center mt-2">
                                                     <div className="bg-white/20 px-6 h-11 rounded-full border border-white/40 shadow-sm min-w-[140px] flex items-center justify-center backdrop-blur-sm">
                                                         <span className="font-bold text-lg tracking-wider drop-shadow-sm text-center fix-name-offset" style={{textShadow: '0 1px 2px rgba(0,0,0,0.1)'}}>
@@ -320,7 +343,7 @@
                                         </div>
 
                                         <div className="p-5 flex-1 space-y-5 bg-white">
-                                            
+
                                             <div className="flex justify-center text-[10px] text-gray-400 mb-1 h-6 gap-3">
                                                 <div className="flex items-center">
                                                     <div className={`w-3 h-3 rounded-sm mr-1.5 border ${theme.tier1.split(' ')[0]} border-blue-200`}></div>
@@ -349,7 +372,7 @@
                                                         <div className="flex items-center gap-2 mb-2 px-1">
                                                             <div className={`w-1 h-3.5 rounded-full ${dayTotal > 0 ? theme.barColor : 'bg-gray-200'}`}></div>
                                                             <span className={`text-sm font-bold fix-date-text ${dayTotal > 0 ? 'text-gray-700' : 'text-gray-300'}`}>{item.dateLabel}</span>
-                                                            
+
                                                             {dayTotal > 0 && (
                                                                 <span className="ml-auto text-[10px] font-bold text-gray-400 bg-gray-50 px-2 rounded-full">
                                                                     <span className="fix-subtotal-text-inner">計 {dayTotal}</span>
